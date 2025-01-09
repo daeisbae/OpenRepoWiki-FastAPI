@@ -1,11 +1,9 @@
 FROM python:3.13-alpine
 
-WORKDIR /app
+WORKDIR /usr/src/openrepowiki
 
-COPY requirements.txt /app/
+COPY . /usr/src/openrepowiki/
 RUN pip install --no-cache-dir -r requirements.txt
-
-COPY . /app/
 
 EXPOSE 8000
 
