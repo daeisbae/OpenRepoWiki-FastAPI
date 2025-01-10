@@ -1,7 +1,6 @@
 altgraph==0.17.4
 argcomplete==3.2.1
 beautifulsoup4==4.12.2
-black @ git+https://github.com/psf/black@b677a643c5322b6af2dbca1f8f7a4f8c98e732aa
 blinker==1.7.0
 bloodhound==1.7.2
 certifi==2024.8.30
