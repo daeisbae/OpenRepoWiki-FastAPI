@@ -5,6 +5,7 @@ import boto3
 
 from db.config.config import DBConfig
 import asyncpg
+from loguru import logger
 
 
 async def download_certificate() -> str:
@@ -29,7 +30,7 @@ async def download_certificate() -> str:
         certificate_data = response["Body"].read().decode("utf-8")
         return certificate_data
     except Exception as e:
-        print("Failed to download certificate:", e)
+        logger.critical("Failed to download certificate:", e)
         raise e
 
 class AsyncDBConnector:
@@ -93,7 +94,7 @@ class AsyncDBConnector:
                 # ssl_context.verify_mode = ssl.CERT_NONE
 
             except Exception as e:
-                print("SSL certificate download or setup failed:", e)
+                logger.critical("SSL certificate download or setup failed:", e)
                 raise e
 
         try:
@@ -109,9 +110,9 @@ class AsyncDBConnector:
                 command_timeout=60,
             )
             self._connected = True
-            print("AsyncPG pool created successfully.")
+            logger.info("AsyncPG pool created successfully.")
         except Exception as e:
-            print(f"Error creating asyncpg pool: {e}")
+            logger.error(f"Error creating asyncpg pool: {e}")
             raise e
 
     async def query(self, sql: str, params=None):
@@ -132,5 +133,5 @@ class AsyncDBConnector:
                 # Convert each asyncpg.Record to a dict so it’s easier to handle.
                 return [dict(r) for r in records]
             except Exception as e:
-                print(f"Database query failed: {e}")
+                logger.error(f"Database query failed: {e}")
                 raise e

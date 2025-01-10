@@ -1,9 +1,9 @@
-# Function to check GitHub API rate limit
 from typing import Optional
 
 import aiohttp
 from github.config import github_auth_config
 
+from loguru import logger
 
 async def check_rate_limit() -> Optional[dict]:
     rate_limit_url = 'https://api.github.com/rate_limit'
@@ -13,5 +13,5 @@ async def check_rate_limit() -> Optional[dict]:
                 data = await response.json()
                 return data['resources']['core']
             else:
-                print(f'Error fetching rate limit: {response.status}')
+                logger.error(f'Error fetching rate limit: {response.status}')
                 return None

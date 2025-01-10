@@ -1,5 +1,6 @@
 import os
 import dotenv
+from loguru import logger
 dotenv.load_dotenv()
 
 TokenProcessingConfig = {
@@ -9,9 +10,9 @@ TokenProcessingConfig = {
 }
 
 if TokenProcessingConfig['characterLimit'] < TokenProcessingConfig['reduceCharPerRetry']:
-    print('.env: TOKEN_PROCESSING_CHARACTER_LIMIT should be greater than TOKEN_PROCESSING_REDUCE_CHAR_PER_RETRY')
+    logger.critical('.env: TOKEN_PROCESSING_CHARACTER_LIMIT should be greater than TOKEN_PROCESSING_REDUCE_CHAR_PER_RETRY')
     os.exit(1)
 
 if TokenProcessingConfig['maxRetries'] < 1:
-    print('.env: TOKEN_PROCESSING_MAX_RETRIES should be greater than 0')
+    logger.critical('.env: TOKEN_PROCESSING_MAX_RETRIES should be greater than 0')
     os.exit(1)

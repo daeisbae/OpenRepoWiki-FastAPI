@@ -15,17 +15,9 @@ class SchemaParser:
 
     def parse(self, output: str) -> Union[FileSchema, FolderSchema]:
         filtered_output = self.remove_json_markdown_wrapper(output)
-        # return await asyncio.get_event_loop().run_in_executor(
-        #     None, self.output_parser.parse, filtered_output
-        # )
-        print(filtered_output)
         return self.output_parser.parse(filtered_output)
 
     def remove_json_markdown_wrapper(self, llm_output: str) -> str:
-        # if llm_output.startswith('```json\n') and llm_output.endswith('\n```'):
-        #     return llm_output[8:-4].strip()
-        # elif llm_output.startswith('```\n') and llm_output.endswith('\n```'):
-        #     return llm_output[4:-4].strip()
         match = re.search(r'\{.*\}', llm_output, re.DOTALL)
         if match:
             return match.group(0)

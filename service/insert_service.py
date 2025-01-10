@@ -13,6 +13,8 @@ from llm.llm_provider import LLMProvider
 from db.model.repository import Repository, RepositoryData
 from service.config import TokenProcessingConfig
 
+from loguru import logger
+
 
 class InsertRepoService:
     def __init__(self, db: AsyncDBConnector, llm_provider: LLMProvider):
@@ -26,10 +28,10 @@ class InsertRepoService:
         self.repoFileInfo: Optional[Dict[str, str]] = None
 
     async def insertRepository(self, owner: str, repo: str) -> Optional[RepositoryData]:
-        print(f"Step 1: Fetching repository details for {owner}/{repo}...")
+        logger.info(f"Step 1: Fetching repository details for {owner}/{repo}...")
         repo_details = await fetch_github_repo_details(owner, repo)
 
-        print(f"Step 2: Inserting repository {repo_details.repo_owner}/{repo_details.repo_name} into DB...")
+        logger.info(f"Step 2: Inserting repository {repo_details.repo_owner}/{repo_details.repo_name} into DB...")
         repositoryData = await self.repository.insert(
             repo_details.url,
             repo_details.repo_owner,
@@ -44,10 +46,10 @@ class InsertRepoService:
 
         # If the repo already exists, insert() might return None
         if not repositoryData:
-            print(f"Repository already exists: {owner}/{repo}")
+            logger.info(f"Repository already exists: {owner}/{repo}")
             return None
 
-        print(f"Step 3: Inserting branch {repo_details.default_branch} into DB...")
+        logger.info(f"Step 3: Inserting branch {repo_details.default_branch} into DB...")
         branchCommit = await self.branch.insert(
             repo_details.sha,
             repo_details.default_branch,
@@ -63,26 +65,26 @@ class InsertRepoService:
             "commit_sha": repo_details.sha
         }
 
-        print(f"Step 4: Fetching entire repo tree for {owner}/{repo} @ {repo_details.sha}...")
+        logger.info(f"Step 4: Fetching entire repo tree for {owner}/{repo} @ {repo_details.sha}...")
         fullTree = await fetch_github_repo_tree(owner, repo, repo_details.sha)
 
-        print("Step 5: Filtering tree in memory...")
+        logger.info("Step 5: Filtering tree in memory...")
         filteredTree = self._filterTree(fullTree)
 
-        print("Step 6: Inserting folder structure into DB...")
+        logger.info("Step 6: Inserting folder structure into DB...")
         await self._insertFolders(filteredTree, branchId, None)
 
-        print("Step 7: Fetching and summarizing files in parallel...")
+        logger.info("Step 7: Fetching and summarizing files in parallel...")
         await self._fetchAndInsertFiles(filteredTree)
 
-        print("Step 8: Summarizing folders bottom-up...")
+        logger.info("Step 8: Summarizing folders bottom-up...")
         await self._summarizeFolders(filteredTree)
 
-        print(f"Done! Inserted and summarized repository {owner}/{repo} successfully.")
+        logger.success(f"Done! Inserted and summarized repository {owner}/{repo} successfully.")
         return repositoryData
 
     def _filterTree(self, tree: RepoTreeResult) -> RepoTreeResult:
-        print(f'Filtering tree at path "{tree.path or "/"}"...')
+        logger.info(f'Filtering tree at path "{tree.path or "/"}"...')
 
         # 1) Filter files
         allowed_files = whitelisted_file(tree.files, whitelisted_filter)
@@ -114,7 +116,7 @@ class InsertRepoService:
         folder_name = tree.path.split("/")[-1] if tree.path else ""  # root => ""
         folder_path = tree.path
 
-        print(f'\tInserting folder "{folder_name}" with path "{folder_path}"...')
+        logger.info(f'\tInserting folder "{folder_name}" with path "{folder_path}"...')
         folderData = await self.folder.insert(folder_name, folder_path, branch_id, parent_folder_id)
 
         self.folderPathMap[folder_path] = folderData.folder_id
@@ -133,10 +135,10 @@ class InsertRepoService:
                 gather_files(s)
 
         gather_files(rootTree)
-        print(f"\tFound {len(all_file_paths)} files to process...")
+        logger.success(f"\tFound {len(all_file_paths)} files to process...")
 
         # 2) fetch file contents in parallel
-        print(f"\tFetching file contents in parallel...")
+        logger.info(f"\tFetching file contents in parallel...")
 
         async def fetch_content(fp: str):
             try:
@@ -148,14 +150,14 @@ class InsertRepoService:
                 )
                 return fp, content
             except Exception as e:
-                print(f"\tFailed fetching file: {fp}, error: {e}")
+                logger.error(f"\tFailed fetching file: {fp}, error: {e}")
                 return fp, None
 
         fetch_coros = [fetch_content(fp) for fp in all_file_paths]
         fetched_files = await asyncio.gather(*fetch_coros)
 
         # 3) Summarize each file
-        print(f"\tGenerating summaries for files...")
+        logger.info(f"\tGenerating summaries for files...")
 
         async def summarize_file(file_path: str, content: Optional[str]):
             if not content:
@@ -171,15 +173,14 @@ class InsertRepoService:
                     slice_size = TokenProcessingConfig.get('characterLimit') - wordDeduction
                     reducedContent = content[: max(0, slice_size)]
                     if self.repoFileInfo is None:
-                        print("ERROR! repoFileInfo is empty!")
+                        logger.error("ERROR! repoFileInfo is empty!")
                         continue
                     aiSummary = await self.codeProcessor.generate(reducedContent, {
                         "path": file_path,
                         **(self.repoFileInfo or {})
                     })
                 except Exception as e:
-                    print(e)
-                    print(f"\t[Retry {retries + 1}] Failed generating summary for {file_path}")
+                    logger.error(f"\t[Retry {retries + 1}] Failed generating summary for {file_path}")
                 finally:
                     retries += 1
                     wordDeduction += TokenProcessingConfig.get('reduceCharPerRetry')
@@ -194,7 +195,7 @@ class InsertRepoService:
         processed_files = await asyncio.gather(*summarize_coros)
 
         # 4) Insert file records in DB
-        print(f"\tInserting summarized files into DB...")
+        logger.info(f"\tInserting summarized files into DB...")
         for f in processed_files:
             if not f or not f["aiSummary"]:
                 continue
@@ -204,11 +205,11 @@ class InsertRepoService:
             # root-level file => folder_path == ""
             folder_id = self.folderPathMap.get(folder_path, None)
             if folder_id is None:
-                print(f"\tNo folder found for path: '{folder_path}' (file: '{file_path}')")
+                logger.critical(f"\tNo folder found for path: '{folder_path}' (file: '{file_path}')")
                 continue
 
             file_name = file_path.split("/")[-1]
-            print(f'\t\tInserting file "{file_name}" (path: "{file_path}")...')
+            logger.info(f'\t\tInserting file "{file_name}" (path: "{file_path}")...')
             await self.file.insert(
                 file_name,
                 folder_id,
@@ -218,7 +219,7 @@ class InsertRepoService:
             )
 
     async def _summarizeFolders(self, tree: RepoTreeResult) -> Optional[str]:
-        print(f'Summarizing folder "{tree.path or "/"}"...')
+        logger.info(f'Summarizing folder "{tree.path or "/"}"...')
 
         # 1) Summarize subfolders first
         subfolders_summaries: List[str] = []
@@ -230,7 +231,7 @@ class InsertRepoService:
         # 2) Gather file summaries from DB
         folder_id = self.folderPathMap.get(tree.path, None)
         if folder_id is None:
-            print(f"\tNo folder ID found for path: '{tree.path}'")
+            logger.critical(f"\tNo folder ID found for path: '{tree.path}'")
             return None
 
         files_in_folder = await self.file.select(folder_id)
@@ -241,7 +242,7 @@ class InsertRepoService:
         ]
 
         if not subfolders_summaries and not file_summaries:
-            print(f'\tNo summaries found in folder "{tree.path}". Skipping...')
+            logger.error(f'\tNo summaries found in folder "{tree.path}". Skipping...')
             return None
 
         # 3) Combine
@@ -262,17 +263,17 @@ class InsertRepoService:
                     **(self.repoFileInfo or {})
                 })
             except Exception:
-                print(f"\t[Retry {retries + 1}] Failed to summarize folder '{tree.path}'")
+                logger.warning(f"\t[Retry {retries + 1}] Failed to summarize folder '{tree.path}'")
             finally:
                 retries += 1
                 summaryDeduction += TokenProcessingConfig.get('reduceCharPerRetry')
 
         if not aiSummary:
-            print(f"\tNo AI summary produced for folder '{tree.path}' after max retries.")
+            logger.warning(f"\tNo AI summary produced for folder '{tree.path}' after max retries.")
             return None
 
         # 5) Store in DB
-        print(f"\tStoring AI summary for folder '{tree.path}'...")
+        logger.info(f"\tStoring AI summary for folder '{tree.path}'...")
         await self.folder.update(aiSummary.summary, aiSummary.usage, folder_id)
 
         return aiSummary.summary

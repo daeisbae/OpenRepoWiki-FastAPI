@@ -4,6 +4,7 @@ from typing import Optional, List
 from langchain_core.documents import Document
 from langchain_text_splitters import RecursiveCharacterTextSplitter, Language
 
+from loguru import logger
 
 def get_language_from_extension(extension: str) -> Optional[Language]:
     """
@@ -97,7 +98,7 @@ class CodeSplitter:
         """
         language = get_language_from_extension(file_extension)
         if not language:
-            print(f"Unsupported language for extension: {file_extension}")
+            logger.warning(f"Unsupported language for extension: {file_extension}")
             return None
 
         separators = RecursiveCharacterTextSplitter.get_separators_for_language(language.value)
@@ -111,7 +112,7 @@ class CodeSplitter:
         try:
             docs = splitter.create_documents([code])
         except Exception as e:
-            print(f"Error during splitting: {e}")
+            logger.critical(f"Error during splitting: {e}")
             return None
 
         doc_with_metadata = ''

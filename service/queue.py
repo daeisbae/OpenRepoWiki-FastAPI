@@ -12,6 +12,7 @@ from llm.llm_provider import LLMProvider
 from db.model.repository import Repository
 from service.allowed_languages import ALLOWED_LANGUAGES
 
+from loguru import logger
 
 class InsertItem:
     def __init__(self, owner: str, repo: str):
@@ -74,9 +75,8 @@ class InsertQueue:
             return AddRepositoryQueueResult(False, "Queue is full")
 
         # Check if the repository actually exists on GitHub
-        print(f"Asking GitHub if {item.owner}/{item.repo} exists...")
+        logger.info(f"Asking GitHub if {item.owner}/{item.repo} exists...")
         github_api = f"https://api.github.com/repos/{item.owner}/{item.repo}"
-        print(github_api)
         async with aiohttp.ClientSession() as session:
             async with session.get(github_api, ssl=False) as resp:
                 if resp.status != 200:
@@ -102,11 +102,11 @@ class InsertQueue:
         while self._queue:
             rateLimit = await check_rate_limit()
             if rateLimit and rateLimit["remaining"] < self._rateLimitBeforeStop:
-                print("Rate limit reached. Stopping queue processing.")
+                logger.info("Rate limit reached. Stopping queue processing.")
                 waitTime = (rateLimit["reset"] - int(datetime.datetime().now().timestamp())) * 1000
                 if waitTime < 0:
                     waitTime = 0
-                print(f"Waiting for {waitTime / 1000} seconds")
+                logger.info(f"Waiting for {waitTime / 1000} seconds")
                 await asyncio.sleep(waitTime / 1000 + 1)
                 continue
 
@@ -116,14 +116,14 @@ class InsertQueue:
         self._isProcessing = False
 
     async def _processItem(self, item: InsertItem) -> Optional[RepositoryData]:
-        print(f"Processing item: {item.owner}/{item.repo}")
-        self._processingTime = datetime.utcnow().isoformat()
+        logger.info(f"Processing item: {item.owner}/{item.repo}")
+        self._processingTime = datetime.datetime.now(datetime.timezone.utc)
         self._processingItem = item
         result = None
         try:
             result = await self._repoService.insertRepository(item.owner, item.repo)
         except Exception as e:
-            print(f"Failed to process item: {item.owner}/{item.repo}, error: {e}")
+            logger.error(f"Failed to process item: {item.owner}/{item.repo}, error: {e}")
         self._processingItem = None
         self._processingTime = None
         return result

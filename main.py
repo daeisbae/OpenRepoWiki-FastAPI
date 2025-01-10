@@ -47,5 +47,4 @@ async def register(repo_info: RepoInfo, response: Response):
         response.status_code = status.HTTP_201_CREATED
     else:
         response.status_code = status.HTTP_400_BAD_REQUEST
-        print(insert_resp)
     return insert_resp
