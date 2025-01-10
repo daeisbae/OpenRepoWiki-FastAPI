@@ -11,6 +11,7 @@ app = FastAPI()
 
 origins = [
     "https://openrepowiki.xyz"
+    "https://www.openrepowiki.xyz"
 ]
 
 app.add_middleware(
