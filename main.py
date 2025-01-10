@@ -10,7 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 app = FastAPI()
 
 origins = [
-    "https://openrepowiki.xyz"
+    "https://openrepowiki.xyz",
     "https://www.openrepowiki.xyz"
 ]
 
