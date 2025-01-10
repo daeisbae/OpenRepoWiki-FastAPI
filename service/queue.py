@@ -1,7 +1,7 @@
 import asyncio
 import aiohttp
 from typing import List, Optional
-from datetime import datetime
+from datetime import datetime, timezone
 
 from github.ratelimit import check_rate_limit
 from llm.llm_config import LLMConfig
@@ -103,7 +103,7 @@ class InsertQueue:
             rateLimit = await check_rate_limit()
             if rateLimit and rateLimit["remaining"] < self._rateLimitBeforeStop:
                 logger.info("Rate limit reached. Stopping queue processing.")
-                waitTime = (rateLimit["reset"] - int(datetime.datetime().now().timestamp())) * 1000
+                waitTime = (rateLimit["reset"] - int(datetime().now().timestamp())) * 1000
                 if waitTime < 0:
                     waitTime = 0
                 logger.info(f"Waiting for {waitTime / 1000} seconds")
@@ -117,7 +117,7 @@ class InsertQueue:
 
     async def _processItem(self, item: InsertItem) -> Optional[RepositoryData]:
         logger.info(f"Processing item: {item.owner}/{item.repo}")
-        self._processingTime = datetime.datetime.now(datetime.timezone.utc)
+        self._processingTime = datetime.now(timezone.utc)
         self._processingItem = item
         result = None
         try:
