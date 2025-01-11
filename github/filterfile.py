@@ -31,6 +31,7 @@ whitelisted_filter = [
     r'\.cc$',
     r'\.cxx$',
     r'\.hpp$',
+    r'\.kt',
     r'\.hxx$',
     r'\.h$',
     r'\.go$',
