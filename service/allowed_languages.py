@@ -9,6 +9,7 @@ ALLOWED_LANGUAGES = [
     "Rust",
     "Ruby",
     "PHP",
+    "Kotlin",
     "Scala",
     "HTML",
     "Haskell",
