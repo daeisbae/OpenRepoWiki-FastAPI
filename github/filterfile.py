@@ -26,9 +26,13 @@ whitelisted_filter = [
     r'\.ts$',
     r'\.java$',
     r'\.scala$',
+    r'\.swift$',
     r'README\.md',
     r'\.cpp$',
     r'\.cc$',
+    r'\.c$',
+    r'\.lua$',
+    r'\.pl',
     r'\.cxx$',
     r'\.hpp$',
     r'\.kt',
@@ -38,6 +42,7 @@ whitelisted_filter = [
     r'\.rb$',
     r'\.rs$',
     r'\.php$',
+    r'\.cs$'
 ]
 
 blacklisted_file = [
