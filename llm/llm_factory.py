@@ -1,6 +1,7 @@
 from llm.llm_config import LLMConfig
 from llm.llm_provider import LLMProvider
 from llm.providers.deepseek import DeepSeekProvider
+from llm.providers.minimax import MinimaxProvider
 
 import os
 import dotenv
@@ -28,6 +29,9 @@ class LLMFactory:
         match LLMEnvConfig.get('provider'):
             case 'deepseek':
                 return DeepSeekProvider(api_key=LLMEnvConfig.get('apiKey'), model_name=LLMEnvConfig.get('modelName'),
+                                        llm_config=llm_config)
+            case 'minimax':
+                return MinimaxProvider(api_key=LLMEnvConfig.get('apiKey'), model_name=LLMEnvConfig.get('modelName'),
                                         llm_config=llm_config)
             case _:
                 raise Exception('Unsupported LLM Provider')
